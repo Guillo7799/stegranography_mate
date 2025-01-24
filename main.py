@@ -4,10 +4,19 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
-import base64
+import random
 
+def es_primo_fermat(num, iteraciones=5):
+    if num <= 1:
+        return False
+    if num <= 3:
+        return True
+    for _ in range(iteraciones):
+        a = random.randint(2, num - 2)
+        if pow(a, num - 1, num) != 1:
+            return False
+    return True
 
-# Función para cargar la imagen
 def cargar_imagen():
     archivo = filedialog.askopenfilename(title="Seleccionar imagen",
                                          filetypes=[("Archivos de imagen", "*.png;*.jpg;*.jpeg")])
@@ -23,7 +32,6 @@ def cargar_imagen():
             messagebox.showerror("Error", f"No se pudo cargar la imagen: {e}")
 
 
-# Función para cifrar la imagen
 def cifrar_imagen():
     if not hasattr(app, 'archivo_imagen'):
         messagebox.showwarning("Advertencia", "Primero seleccione una imagen")
@@ -34,8 +42,12 @@ def cifrar_imagen():
         messagebox.showwarning("Advertencia", "Debe ingresar una clave para cifrar")
         return
 
+    clave_num = sum(ord(char) for char in clave)
+    if not es_primo_fermat(clave_num):
+        messagebox.showerror("Error", "La clave no es válida según el Teorema de Fermat (no es primo)")
+        return
+
     try:
-        # Leemos la imagen
         with open(app.archivo_imagen, "rb") as file:
             datos_imagen = file.read()
 
@@ -49,7 +61,6 @@ def cifrar_imagen():
         encryptor = cipher.encryptor()
         datos_cifrados = encryptor.update(datos_imagen) + encryptor.finalize()
 
-        # Guardamos la imagen cifrada
         with open("imagen_cifrada.bin", "wb") as file:
             file.write(iv + datos_cifrados)  # Almacenamos IV + datos cifrados
         messagebox.showinfo("Éxito", "Imagen cifrada con éxito.")
@@ -57,11 +68,16 @@ def cifrar_imagen():
         messagebox.showerror("Error", f"No se pudo cifrar la imagen: {e}")
 
 
-# Función para descifrar la imagen
 def descifrar_imagen():
     clave = entrada_clave.get()
     if len(clave) == 0:
         messagebox.showwarning("Advertencia", "Debe ingresar una clave para descifrar")
+        return
+
+    # Convertir la clave en un número para validarla con el Teorema de Fermat
+    clave_num = sum(ord(char) for char in clave)  # Sumar los valores ASCII de la clave
+    if not es_primo_fermat(clave_num):
+        messagebox.showerror("Error", "La clave no es válida según el Teorema de Fermat (no es primo)")
         return
 
     try:
@@ -82,7 +98,6 @@ def descifrar_imagen():
         decryptor = cipher.decryptor()
         datos_descifrados = decryptor.update(datos_cifrados) + decryptor.finalize()
 
-        # Guardamos la imagen descifrada
         with open("imagen_descifrada.png", "wb") as file:
             file.write(datos_descifrados)
 
@@ -98,19 +113,17 @@ def descifrar_imagen():
         messagebox.showerror("Error", f"No se pudo descifrar la imagen: {e}")
 
 
-# Crear la ventana principal de la aplicación
 app = Tk()
 app.title("Cifrado y Descifrado de Imágenes")
 app.geometry("400x500")
 
-# Agregar elementos a la interfaz
 boton_cargar = Button(app, text="Cargar Imagen", command=cargar_imagen)
 boton_cargar.pack(pady=10)
 
 etiqueta_imagen = Label(app)
 etiqueta_imagen.pack(pady=10)
 
-etiqueta_clave = Label(app, text="Ingrese clave (32 caracteres):")
+etiqueta_clave = Label(app, text="Ingrese clave:")
 etiqueta_clave.pack(pady=5)
 
 entrada_clave = Entry(app, show="*", width=32)
@@ -122,5 +135,4 @@ boton_cifrar.pack(pady=10)
 boton_descifrar = Button(app, text="Descifrar Imagen", command=descifrar_imagen)
 boton_descifrar.pack(pady=10)
 
-# Iniciar la aplicación
 app.mainloop()
